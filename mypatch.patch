@@ -1,0 +1,2094 @@
+From 0314cbd468dfc9e03adbf3e02558c9c32e377bd8 Mon Sep 17 00:00:00 2001
+From: Fawwaz <fawwaz-1427@hotmail.com>
+Date: Sun, 4 Jun 2023 19:21:59 +0800
+Subject: [PATCH] inital proof of concept for an edge adpater
+
+---
+ apps/example-next-edge/.eslintrc.json         |  34 ++
+ apps/example-next-edge/components/Layout.tsx  |  11 +
+ apps/example-next-edge/components/Navbar.tsx  |  74 ++++
+ apps/example-next-edge/components/Post.tsx    |  82 +++++
+ apps/example-next-edge/hooks/useDebounce.tsx  |  23 ++
+ apps/example-next-edge/index.d.ts             |   6 +
+ apps/example-next-edge/jest.config.ts         |  11 +
+ apps/example-next-edge/next-env.d.ts          |   5 +
+ apps/example-next-edge/next.config.js         |  15 +
+ apps/example-next-edge/package.json           |   4 +
+ apps/example-next-edge/pages/_app.tsx         |  31 ++
+ apps/example-next-edge/pages/_document.tsx    |  13 +
+ .../pages/api/[...ts-rest].tsx                | 128 +++++++
+ apps/example-next-edge/pages/index.tsx        |  93 +++++
+ .../pages/post/[id]/edit.tsx                  | 116 ++++++
+ .../pages/post/[id]/index.tsx                 |  16 +
+ apps/example-next-edge/pages/post/new.tsx     |  73 ++++
+ apps/example-next-edge/pages/styles.css       |   3 +
+ apps/example-next-edge/postcss.config.js      |  10 +
+ apps/example-next-edge/project.json           |  64 ++++
+ apps/example-next-edge/public/.gitkeep        |   0
+ apps/example-next-edge/state.ts               |  11 +
+ apps/example-next-edge/tailwind.config.js     |  16 +
+ apps/example-next-edge/test.http              |  36 ++
+ apps/example-next-edge/tsconfig.json          |  18 +
+ apps/example-next-edge/tsconfig.spec.json     |  21 ++
+ libs/ts-rest/edge/.babelrc                    |  10 +
+ libs/ts-rest/edge/.eslintrc.json              |  18 +
+ libs/ts-rest/edge/CHANGELOG.md                |   0
+ libs/ts-rest/edge/README.md                   |  11 +
+ libs/ts-rest/edge/jest.config.ts              |  15 +
+ libs/ts-rest/edge/package.json                |  20 ++
+ libs/ts-rest/edge/project.json                |  64 ++++
+ libs/ts-rest/edge/src/index.ts                |   1 +
+ .../edge/src/lib/helpers/path-utils.spec.ts   |  53 +++
+ .../edge/src/lib/helpers/path-utils.ts        |  30 ++
+ libs/ts-rest/edge/src/lib/ts-rest-edge.ts     | 331 ++++++++++++++++++
+ .../ts-rest/edge/src/lib/ts-rest-next.spec.ts |  58 +++
+ libs/ts-rest/edge/tsconfig.json               |  22 ++
+ libs/ts-rest/edge/tsconfig.lib.json           |  10 +
+ libs/ts-rest/edge/tsconfig.spec.json          |   9 +
+ package.json                                  |   3 +-
+ pnpm-lock.yaml                                |  54 ++-
+ tsconfig.base.json                            |   1 +
+ 44 files changed, 1609 insertions(+), 15 deletions(-)
+ create mode 100644 apps/example-next-edge/.eslintrc.json
+ create mode 100644 apps/example-next-edge/components/Layout.tsx
+ create mode 100644 apps/example-next-edge/components/Navbar.tsx
+ create mode 100644 apps/example-next-edge/components/Post.tsx
+ create mode 100644 apps/example-next-edge/hooks/useDebounce.tsx
+ create mode 100644 apps/example-next-edge/index.d.ts
+ create mode 100644 apps/example-next-edge/jest.config.ts
+ create mode 100644 apps/example-next-edge/next-env.d.ts
+ create mode 100644 apps/example-next-edge/next.config.js
+ create mode 100644 apps/example-next-edge/package.json
+ create mode 100644 apps/example-next-edge/pages/_app.tsx
+ create mode 100644 apps/example-next-edge/pages/_document.tsx
+ create mode 100644 apps/example-next-edge/pages/api/[...ts-rest].tsx
+ create mode 100644 apps/example-next-edge/pages/index.tsx
+ create mode 100644 apps/example-next-edge/pages/post/[id]/edit.tsx
+ create mode 100644 apps/example-next-edge/pages/post/[id]/index.tsx
+ create mode 100644 apps/example-next-edge/pages/post/new.tsx
+ create mode 100644 apps/example-next-edge/pages/styles.css
+ create mode 100644 apps/example-next-edge/postcss.config.js
+ create mode 100644 apps/example-next-edge/project.json
+ create mode 100644 apps/example-next-edge/public/.gitkeep
+ create mode 100644 apps/example-next-edge/state.ts
+ create mode 100644 apps/example-next-edge/tailwind.config.js
+ create mode 100644 apps/example-next-edge/test.http
+ create mode 100644 apps/example-next-edge/tsconfig.json
+ create mode 100644 apps/example-next-edge/tsconfig.spec.json
+ create mode 100644 libs/ts-rest/edge/.babelrc
+ create mode 100644 libs/ts-rest/edge/.eslintrc.json
+ create mode 100644 libs/ts-rest/edge/CHANGELOG.md
+ create mode 100644 libs/ts-rest/edge/README.md
+ create mode 100644 libs/ts-rest/edge/jest.config.ts
+ create mode 100644 libs/ts-rest/edge/package.json
+ create mode 100644 libs/ts-rest/edge/project.json
+ create mode 100644 libs/ts-rest/edge/src/index.ts
+ create mode 100644 libs/ts-rest/edge/src/lib/helpers/path-utils.spec.ts
+ create mode 100644 libs/ts-rest/edge/src/lib/helpers/path-utils.ts
+ create mode 100644 libs/ts-rest/edge/src/lib/ts-rest-edge.ts
+ create mode 100644 libs/ts-rest/edge/src/lib/ts-rest-next.spec.ts
+ create mode 100644 libs/ts-rest/edge/tsconfig.json
+ create mode 100644 libs/ts-rest/edge/tsconfig.lib.json
+ create mode 100644 libs/ts-rest/edge/tsconfig.spec.json
+
+diff --git a/apps/example-next-edge/.eslintrc.json b/apps/example-next-edge/.eslintrc.json
+new file mode 100644
+index 0000000..38fc1ec
+--- /dev/null
++++ b/apps/example-next-edge/.eslintrc.json
+@@ -0,0 +1,34 @@
++{
++  "extends": [
++    "plugin:@nx/react-typescript",
++    "next",
++    "next/core-web-vitals",
++    "../../.eslintrc.json"
++  ],
++  "ignorePatterns": ["!**/*"],
++  "overrides": [
++    {
++      "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
++      "rules": {
++        "@next/next/no-html-link-for-pages": [
++          "error",
++          "apps/example-next/pages"
++        ]
++      }
++    },
++    {
++      "files": ["*.ts", "*.tsx"],
++      "rules": {}
++    },
++    {
++      "files": ["*.js", "*.jsx"],
++      "rules": {}
++    }
++  ],
++  "rules": {
++    "@next/next/no-html-link-for-pages": "off"
++  },
++  "env": {
++    "jest": true
++  }
++}
+diff --git a/apps/example-next-edge/components/Layout.tsx b/apps/example-next-edge/components/Layout.tsx
+new file mode 100644
+index 0000000..d89f736
+--- /dev/null
++++ b/apps/example-next-edge/components/Layout.tsx
+@@ -0,0 +1,11 @@
++import React from 'react';
++import { Navbar } from './Navbar';
++
++export const Layout = ({ children }: { children: React.ReactNode }) => {
++  return (
++    <div className="flex flex-col min-h-screen container mx-auto">
++      <Navbar />
++      <div className="grow mt-6">{children}</div>
++    </div>
++  );
++};
+diff --git a/apps/example-next-edge/components/Navbar.tsx b/apps/example-next-edge/components/Navbar.tsx
+new file mode 100644
+index 0000000..aa6be38
+--- /dev/null
++++ b/apps/example-next-edge/components/Navbar.tsx
+@@ -0,0 +1,74 @@
++import Link from 'next/link';
++import { useRouter } from 'next/router';
++import { useStore } from '../state';
++
++export const Navbar: React.FunctionComponent = () => {
++  const router = useRouter();
++
++  const { searchString, setSearchString } = useStore();
++
++  const post = router.query.id as string | undefined;
++
++  return (
++    <div className="navbar bg-base-100 ">
++      <div className="flex-1">
++        <div className="breadcrumbs text-lg font-bold ">
++          <ul>
++            <li>
++              <Link href="/">Home</Link>
++            </li>
++            {post ? <li>Post</li> : null}
++          </ul>
++        </div>
++      </div>
++
++      <div className="flex-none gap-2">
++        <div className="form-control">
++          <input
++            type="text"
++            placeholder="Search"
++            className="input input-bordered"
++            value={searchString}
++            onChange={(e) => {
++              // if not on homepage, redirect to homepage
++              if (router.pathname !== '/') {
++                router.push('/');
++              }
++
++              setSearchString(e.target.value);
++            }}
++          />
++        </div>
++        <Link href="/post/new">
++          <button className="btn ">New Post</button>
++        </Link>
++        <div className="dropdown dropdown-end">
++          <label tabIndex={0} className="btn btn-ghost btn-circle">
++            <div className="avatar placeholder">
++              <div className="bg-neutral-focus text-neutral-content rounded-full w-8">
++                <span className="text-xs">OB</span>
++              </div>
++            </div>
++          </label>
++          <ul
++            tabIndex={0}
++            className="mt-3 p-2 shadow menu menu-compact dropdown-content bg-base-100 rounded-box w-52"
++          >
++            <li>
++              <a className="justify-between">
++                Profile
++                <span className="badge">New</span>
++              </a>
++            </li>
++            <li>
++              <a>Settings</a>
++            </li>
++            <li>
++              <a>Logout</a>
++            </li>
++          </ul>
++        </div>
++      </div>
++    </div>
++  );
++};
+diff --git a/apps/example-next-edge/components/Post.tsx b/apps/example-next-edge/components/Post.tsx
+new file mode 100644
+index 0000000..bed6369
+--- /dev/null
++++ b/apps/example-next-edge/components/Post.tsx
+@@ -0,0 +1,82 @@
++import Link from 'next/link';
++import { useRouter } from 'next/router';
++import toast from 'react-hot-toast';
++import { api } from '../pages';
++
++export const Post = ({ postId }: { postId: string }) => {
++  const router = useRouter();
++
++  const { data, error, isLoading } = api.getPost.useQuery(
++    [`post-${postId}`],
++    {
++      params: { id: postId },
++    },
++    {
++      networkMode: 'offlineFirst',
++      enabled: postId !== undefined,
++      onSettled: () => {
++        console.log('tried');
++      },
++      staleTime: 1000 * 60 * 30,
++    }
++  );
++
++  const { mutate: deletePost } = api.deletePost.useMutation({
++    onSuccess: () => {
++      router.push('/');
++      toast.success('Post deleted!');
++    },
++  });
++
++  if (error) {
++    return (
++      <div className="prose w-full h-full flex flex-row justify-center items-center">
++        <div>
++          <h1>Post not found!</h1>
++        </div>
++      </div>
++    );
++  }
++
++  if (isLoading) {
++    return (
++      <div className="prose w-full h-full flex flex-row justify-center items-center">
++        <div>
++          <h1>Loading...</h1>
++          <progress className="progress w-56"></progress>
++        </div>
++      </div>
++    );
++  }
++
++  const post = data.body;
++
++  return (
++    <div>
++      {post ? (
++        <div className="prose max-w-none mx-auto px-2 sm:px-0">
++          <div className="flex flex-col gap-4 sm:flex-row mb-10">
++            <div className="flex flex-col">
++              <h1 className="mb-2">{post.title}</h1>
++              <h3 className="mt-0">{post.description}</h3>
++            </div>
++          </div>
++
++          <p>{post.content}</p>
++
++          <div className="flex flex-row gap-2">
++            <button
++              className="btn btn-error"
++              onClick={() => deletePost({ params: { id: post.id } })}
++            >
++              Delete
++            </button>
++            <Link href={`/post/${post.id}/edit`}>
++              <button className="btn">Edit</button>
++            </Link>
++          </div>
++        </div>
++      ) : null}
++    </div>
++  );
++};
+diff --git a/apps/example-next-edge/hooks/useDebounce.tsx b/apps/example-next-edge/hooks/useDebounce.tsx
+new file mode 100644
+index 0000000..e7120ee
+--- /dev/null
++++ b/apps/example-next-edge/hooks/useDebounce.tsx
+@@ -0,0 +1,23 @@
++import { useState, useEffect } from 'react';
++
++// T is a generic type for value parameter, our case this will be string
++export function useDebounce<T>(value: T, delay: number): T {
++  // State and setters for debounced value
++  const [debouncedValue, setDebouncedValue] = useState<T>(value);
++  useEffect(
++    () => {
++      // Update debounced value after delay
++      const handler = setTimeout(() => {
++        setDebouncedValue(value);
++      }, delay);
++      // Cancel the timeout if value changes (also on delay change or unmount)
++      // This is how we prevent debounced value from updating if value is changed ...
++      // .. within the delay period. Timeout gets cleared and restarted.
++      return () => {
++        clearTimeout(handler);
++      };
++    },
++    [value, delay] // Only re-call effect if value or delay changes
++  );
++  return debouncedValue;
++}
+diff --git a/apps/example-next-edge/index.d.ts b/apps/example-next-edge/index.d.ts
+new file mode 100644
+index 0000000..7ba08fa
+--- /dev/null
++++ b/apps/example-next-edge/index.d.ts
+@@ -0,0 +1,6 @@
++/* eslint-disable @typescript-eslint/no-explicit-any */
++declare module '*.svg' {
++  const content: any;
++  export const ReactComponent: any;
++  export default content;
++}
+diff --git a/apps/example-next-edge/jest.config.ts b/apps/example-next-edge/jest.config.ts
+new file mode 100644
+index 0000000..06499d4
+--- /dev/null
++++ b/apps/example-next-edge/jest.config.ts
+@@ -0,0 +1,11 @@
++/* eslint-disable */
++export default {
++  displayName: 'example-next',
++  preset: '../../jest.preset.js',
++  transform: {
++    '^(?!.*\\.(js|jsx|ts|tsx|css|json)$)': '@nx/react/plugins/jest',
++    '^.+\\.[tj]sx?$': ['babel-jest', { presets: ['@nx/next/babel'] }],
++  },
++  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
++  coverageDirectory: '../../coverage/apps/example-next',
++};
+diff --git a/apps/example-next-edge/next-env.d.ts b/apps/example-next-edge/next-env.d.ts
+new file mode 100644
+index 0000000..4f11a03
+--- /dev/null
++++ b/apps/example-next-edge/next-env.d.ts
+@@ -0,0 +1,5 @@
++/// <reference types="next" />
++/// <reference types="next/image-types/global" />
++
++// NOTE: This file should not be edited
++// see https://nextjs.org/docs/basic-features/typescript for more information.
+diff --git a/apps/example-next-edge/next.config.js b/apps/example-next-edge/next.config.js
+new file mode 100644
+index 0000000..5c48d66
+--- /dev/null
++++ b/apps/example-next-edge/next.config.js
+@@ -0,0 +1,15 @@
++// eslint-disable-next-line @typescript-eslint/no-var-requires
++const withNx = require('@nx/next/plugins/with-nx');
++
++/**
++ * @type {import('@nx/next/plugins/with-nx').WithNxOptions}
++ **/
++const nextConfig = {
++  nx: {
++    // Set this to true if you would like to to use SVGR
++    // See: https://github.com/gregberge/svgr
++    svgr: false,
++  },
++};
++
++module.exports = withNx(nextConfig);
+diff --git a/apps/example-next-edge/package.json b/apps/example-next-edge/package.json
+new file mode 100644
+index 0000000..e350575
+--- /dev/null
++++ b/apps/example-next-edge/package.json
+@@ -0,0 +1,4 @@
++{
++  "name": "example-next",
++  "version": "0.0.0"
++}
+diff --git a/apps/example-next-edge/pages/_app.tsx b/apps/example-next-edge/pages/_app.tsx
+new file mode 100644
+index 0000000..4d76c42
+--- /dev/null
++++ b/apps/example-next-edge/pages/_app.tsx
+@@ -0,0 +1,31 @@
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
++import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
++import { Toaster } from 'react-hot-toast';
++
++import { AppProps } from 'next/app';
++import Head from 'next/head';
++import './styles.css';
++import { Layout } from '../components/Layout';
++
++export const queryClient = new QueryClient();
++
++function CustomApp({ Component, pageProps }: AppProps) {
++  return (
++    <>
++      <Head>
++        <title>Welcome to example-next!</title>
++      </Head>
++      <QueryClientProvider client={queryClient}>
++        <main className="app">
++          <Layout>
++            <Component {...pageProps} />
++          </Layout>
++        </main>
++        <ReactQueryDevtools initialIsOpen={false} />
++        <Toaster />
++      </QueryClientProvider>
++    </>
++  );
++}
++
++export default CustomApp;
+diff --git a/apps/example-next-edge/pages/_document.tsx b/apps/example-next-edge/pages/_document.tsx
+new file mode 100644
+index 0000000..0a4f988
+--- /dev/null
++++ b/apps/example-next-edge/pages/_document.tsx
+@@ -0,0 +1,13 @@
++import { Html, Head, Main, NextScript } from 'next/document';
++
++export default function Document() {
++  return (
++    <Html data-theme="emerald">
++      <Head />
++      <body>
++        <Main />
++        <NextScript />
++      </body>
++    </Html>
++  );
++}
+diff --git a/apps/example-next-edge/pages/api/[...ts-rest].tsx b/apps/example-next-edge/pages/api/[...ts-rest].tsx
+new file mode 100644
+index 0000000..1b0b30c
+--- /dev/null
++++ b/apps/example-next-edge/pages/api/[...ts-rest].tsx
+@@ -0,0 +1,128 @@
++import { apiNested } from '@ts-rest/example-contracts';
++import { createEdgeRoute, createEdgeRequestHandler } from '@ts-rest/edge';
++
++export const config = {
++  runtime: 'edge',
++};
++const postsRouter = createEdgeRoute(apiNested.posts, {
++  createPost: async (args) => {
++
++    return new Response(
++      JSON.stringify({
++        id: '1',
++        title: 'title',
++        tags: [],
++        description: '',
++        content: '',
++        published: false,
++      }),
++      {
++        headers: {
++          'content-type': 'application/json',
++        },
++        status: 201,
++      }
++    );
++  },
++  updatePost: async (args) => {
++    return new Response(
++      JSON.stringify({
++        id: '1',
++        title: 'title',
++        tags: [],
++        description: '',
++        content: '',
++        published: false,
++      }),
++      {
++        headers: {
++          'content-type': 'application/json',
++        },
++      }
++    );
++  },
++  deletePost: async (args) => {
++    return new Response(JSON.stringify({ message: 'Post deleted' }), {
++      headers: {
++        'content-type': 'application/json',
++      },
++    });
++  },
++  getPost: async ({ params }) => {
++
++    return new Response(
++      JSON.stringify({
++        id: '1',
++        title: 'title',
++        tags: [],
++        description: '',
++        content: '',
++        published: false,
++      }),
++      {
++        headers: {
++          'content-type': 'application/json',
++        },
++      }
++    );
++  },
++  getPosts: async (args) => {
++
++    return new Response(
++      JSON.stringify({
++        posts: [
++          {
++            id: '1',
++            title: 'title',
++            tags: [],
++            content: '',
++            description:null,
++            published: false,
++
++          },
++        ],
++        count: 1,
++        skip: args.query.skip,
++        take: args.query.take,
++      }),
++      {
++        headers: {
++          'content-type': 'application/json',
++        },
++      }
++    );
++  },
++  testPathParams: async (args) => {
++    return new Response(args.params, {
++      headers: {
++        'content-type': 'text/plain',
++      },
++    });
++  },
++});
++
++const healthRouter = createEdgeRoute(apiNested.health, {
++  check: async (args) => {
++    return new Response('OK', {
++      headers: {
++        'content-type': 'text/plain',
++      },
++    });
++  },
++});
++
++const router = createEdgeRoute(apiNested, {
++  posts: postsRouter,
++  health: healthRouter,
++});
++
++export default function handler(request: Request) {
++  return createEdgeRequestHandler({
++    appContract: apiNested,
++    appRouter: router,
++    baseEndpoint: '/api',
++    request,
++  }, {
++    responseValidation: true,
++  });
++}
+diff --git a/apps/example-next-edge/pages/index.tsx b/apps/example-next-edge/pages/index.tsx
+new file mode 100644
+index 0000000..a5d4b3c
+--- /dev/null
++++ b/apps/example-next-edge/pages/index.tsx
+@@ -0,0 +1,93 @@
++import { apiBlog } from '@ts-rest/example-contracts';
++import { initQueryClient } from '@ts-rest/react-query';
++import classNames from 'classnames';
++import Link from 'next/link';
++
++export const api = initQueryClient(apiBlog, {
++  baseUrl: 'http://localhost:4200/api',
++  baseHeaders: {
++    'x-api-key': 'key',
++  },
++});
++
++export function Index() {
++  const PAGE_SIZE = 5;
++
++
++  const { isLoading, data, hasNextPage, fetchNextPage } =
++    api.getPosts.useInfiniteQuery(
++      ['posts'],
++      ({ pageParam = { skip: 0, take: PAGE_SIZE } }) => ({
++        query: {
++          skip: pageParam.skip,
++          take: pageParam.take,
++        },
++      }),
++      {
++        getNextPageParam: (lastPage, allPages) =>
++          lastPage.status === 200
++            ? lastPage.body.count > allPages.length * PAGE_SIZE
++              ? { take: PAGE_SIZE, skip: allPages.length * PAGE_SIZE }
++              : undefined
++            : undefined,
++        networkMode: 'offlineFirst',
++        staleTime: 1000 * 5,
++      }
++    );
++    
++
++  if (isLoading) {
++    return <div>Loading...</div>;
++  }
++
++  if (!data) {
++    return <div>No posts found</div>;
++  }
++
++  const posts = data.pages.flatMap((page) =>
++    page.status === 200 ? page.body.posts : []
++  );
++
++
++  return (
++    <div>
++      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
++        {posts.map((post) => (
++          <Link href={`/post/${post.id}`} key={post.id}>
++            <div className="card bg-base-100 shadow-xl w-full hover:scale-105 transition cursor-pointer">
++              <div className="card-body">
++                <div className="flex flex-row justify-between">
++                  <h2 className="card-title">{post.title}</h2>
++                  <div>
++                    <div className="avatar placeholder">
++                      <div className="bg-neutral-focus text-neutral-content rounded-full w-8">
++                        <span className="text-xs">OB</span>
++                      </div>
++                    </div>
++                  </div>
++                </div>
++                <p>{post.description}?</p>
++                <div className="card-actions justify-end">
++                  {post.tags.map((tag) => (
++                    <div key={tag} className="badge badge-outline">
++                      Fashion
++                    </div>
++                  ))}
++                </div>
++              </div>
++            </div>
++          </Link>
++        ))}
++      </div>
++      <button
++        disabled={!hasNextPage}
++        className={classNames('btn mt-6', { 'btn-disabled': !hasNextPage })}
++        onClick={() => fetchNextPage()}
++      >
++        Load more
++      </button>
++    </div>
++  );
++}
++
++export default Index;
+diff --git a/apps/example-next-edge/pages/post/[id]/edit.tsx b/apps/example-next-edge/pages/post/[id]/edit.tsx
+new file mode 100644
+index 0000000..88a11b2
+--- /dev/null
++++ b/apps/example-next-edge/pages/post/[id]/edit.tsx
+@@ -0,0 +1,116 @@
++import { useRouter } from 'next/router';
++import { api } from '../..';
++import { useForm } from 'react-hook-form';
++import toast from 'react-hot-toast';
++import { Post } from '@ts-rest/example-contracts';
++
++interface Form {
++  title: string;
++  description: string;
++  content: string;
++}
++
++const Edit = ({ post }: { post: Post }) => {
++  const router = useRouter();
++
++  const { register, handleSubmit } = useForm<Form>({
++    defaultValues: {
++      title: post.title,
++      description: post.description || '',
++      content: post.content || '',
++    },
++  });
++
++  const { mutate } = api.updatePost.useMutation({
++    onSuccess: (res) => {
++      router.push(`/post/${res.body.id}`);
++      toast.success('Post updated!');
++    },
++  });
++
++  const submit = async (data: Form) => {
++    mutate({
++      params: {
++        id: post.id,
++      },
++      body: {
++        title: data.title,
++        description: data.description,
++        content: data.content,
++      },
++    });
++  };
++
++  return (
++    <div className="prose">
++      <h1>Edit Post</h1>
++      <form onSubmit={handleSubmit(submit)}>
++        <div className="form-control">
++          <label className="label">
++            <span className="label-text">Title</span>
++          </label>
++          <input
++            type="text"
++            className="input input-bordered"
++            {...register('title', { required: true })}
++          />
++        </div>
++        <div className="form-control">
++          <label className="label">
++            <span className="label-text">Description</span>
++          </label>
++          <input
++            type="text"
++            className="input input-bordered"
++            {...register('description', { required: true })}
++          />
++        </div>
++        <div className="form-control">
++          <label className="label">
++            <span className="label-text">Content</span>
++          </label>
++          <textarea
++            className="textarea textarea-bordered"
++            {...register('content', { required: true })}
++          />
++        </div>
++        <button className="btn mt-4">Create Post</button>
++      </form>
++    </div>
++  );
++};
++
++export function Index() {
++  const router = useRouter();
++
++  const postId = router.query.id as string;
++
++  const { data, error, isLoading } = api.getPost.useQuery([`post-${postId}`], {
++    params: { id: postId },
++  });
++
++  if (error) {
++    return (
++      <div className="prose w-full h-full flex flex-row justify-center items-center">
++        <div>
++          <h1>Post not found!</h1>
++        </div>
++      </div>
++    );
++  }
++
++  if (isLoading) {
++    return (
++      <div className="prose w-full h-full flex flex-row justify-center items-center">
++        <div>
++          <h1>Loading...</h1>
++          <progress className="progress w-56"></progress>
++        </div>
++      </div>
++    );
++  }
++
++  return <Edit post={data.body} />;
++}
++
++export default Index;
+diff --git a/apps/example-next-edge/pages/post/[id]/index.tsx b/apps/example-next-edge/pages/post/[id]/index.tsx
+new file mode 100644
+index 0000000..4861235
+--- /dev/null
++++ b/apps/example-next-edge/pages/post/[id]/index.tsx
+@@ -0,0 +1,16 @@
++import { useRouter } from 'next/router';
++import { Post } from '../../../components/Post';
++
++export function Index() {
++  const router = useRouter();
++
++  const postId = router.query.id as string;
++
++  if (!postId) {
++    return null;
++  }
++
++  return <Post postId={postId} />;
++}
++
++export default Index;
+diff --git a/apps/example-next-edge/pages/post/new.tsx b/apps/example-next-edge/pages/post/new.tsx
+new file mode 100644
+index 0000000..5235bc0
+--- /dev/null
++++ b/apps/example-next-edge/pages/post/new.tsx
+@@ -0,0 +1,73 @@
++import { useRouter } from 'next/router';
++import { api } from '..';
++import { useForm } from 'react-hook-form';
++import toast from 'react-hot-toast';
++
++interface Form {
++  title: string;
++  description: string;
++  content: string;
++}
++
++export function Index() {
++  const router = useRouter();
++
++  const { mutate } = api.createPost.useMutation({
++    onSuccess: (res) => {
++      router.push(`/post/${res.body.id}`);
++      toast.success('Post created!');
++    },
++  });
++
++  const { register, handleSubmit } = useForm<Form>({});
++
++  const submit = async (data: Form) => {
++    mutate({
++      body: {
++        title: data.title,
++        description: data.description,
++        content: data.content,
++      },
++    });
++  };
++
++  return (
++    <div className="prose">
++      <h1>Create Post</h1>
++      <form onSubmit={handleSubmit(submit)}>
++        <div className="form-control">
++          <label className="label">
++            <span className="label-text">Title</span>
++          </label>
++          <input
++            type="text"
++            className="input input-bordered"
++            {...register('title', { required: true })}
++          />
++        </div>
++        <div className="form-control">
++          <label className="label">
++            <span className="label-text">Description</span>
++          </label>
++          <input
++            type="text"
++            className="input input-bordered"
++            {...register('description', { required: true })}
++          />
++        </div>
++        <div className="form-control">
++          <label className="label">
++            <span className="label-text">Content</span>
++          </label>
++          <textarea
++            className="textarea textarea-bordered"
++            {...register('content', { required: true })}
++          />
++        </div>
++        <button className="btn mt-4">Create Post</button>
++      </form>
++    </div>
++  );
++}
++
++export default Index;
+diff --git a/apps/example-next-edge/pages/styles.css b/apps/example-next-edge/pages/styles.css
+new file mode 100644
+index 0000000..b5c61c9
+--- /dev/null
++++ b/apps/example-next-edge/pages/styles.css
+@@ -0,0 +1,3 @@
++@tailwind base;
++@tailwind components;
++@tailwind utilities;
+diff --git a/apps/example-next-edge/postcss.config.js b/apps/example-next-edge/postcss.config.js
+new file mode 100644
+index 0000000..cbdd9c2
+--- /dev/null
++++ b/apps/example-next-edge/postcss.config.js
+@@ -0,0 +1,10 @@
++const { join } = require('path');
++
++module.exports = {
++  plugins: {
++    tailwindcss: {
++      config: join(__dirname, 'tailwind.config.js'),
++    },
++    autoprefixer: {},
++  },
++};
+diff --git a/apps/example-next-edge/project.json b/apps/example-next-edge/project.json
+new file mode 100644
+index 0000000..005308f
+--- /dev/null
++++ b/apps/example-next-edge/project.json
+@@ -0,0 +1,64 @@
++{
++  "name": "example-next-edge",
++  "$schema": "../../node_modules/nx/schemas/project-schema.json",
++  "sourceRoot": "apps/example-next-edge",
++  "projectType": "application",
++  "targets": {
++    "build": {
++      "executor": "@nx/next:build",
++      "outputs": ["{options.outputPath}"],
++      "defaultConfiguration": "production",
++      "options": {
++        "root": "apps/example-next-edge",
++        "outputPath": "dist/apps/example-next-edge"
++      },
++      "configurations": {
++        "development": {
++          "outputPath": "tmp/apps/example-next-edge"
++        },
++        "production": {}
++      }
++    },
++    "serve": {
++      "executor": "@nx/next:server",
++      "defaultConfiguration": "development",
++      "options": {
++        "buildTarget": "example-next-edge:build",
++        "dev": true
++      },
++      "configurations": {
++        "development": {
++          "buildTarget": "example-next-edge:build:development",
++          "dev": true
++        },
++        "production": {
++          "buildTarget": "example-next-edge:build:production",
++          "dev": false
++        }
++      }
++    },
++    "export": {
++      "executor": "@nx/next:export",
++      "options": {
++        "buildTarget": "example-next-edge:build:production"
++      }
++    },
++    "test": {
++      "executor": "@nx/jest:jest",
++      "outputs": ["{workspaceRoot}/coverage/apps/example-next-edge"],
++      "options": {
++        "jestConfig": "apps/example-next-edge/jest.config.ts",
++        "passWithNoTests": true,
++        "coverageReporters": ["lcov", "text-summary"]
++      }
++    },
++    "lint": {
++      "executor": "@nx/linter:eslint",
++      "outputs": ["{options.outputFile}"],
++      "options": {
++        "lintFilePatterns": ["apps/example-next-edge/**/*.{ts,tsx,js,jsx}"]
++      }
++    }
++  },
++  "tags": []
++}
+diff --git a/apps/example-next-edge/public/.gitkeep b/apps/example-next-edge/public/.gitkeep
+new file mode 100644
+index 0000000..e69de29
+diff --git a/apps/example-next-edge/state.ts b/apps/example-next-edge/state.ts
+new file mode 100644
+index 0000000..d86bc87
+--- /dev/null
++++ b/apps/example-next-edge/state.ts
+@@ -0,0 +1,11 @@
++import create from 'zustand';
++
++interface State {
++  searchString: string;
++  setSearchString: (searchString: string) => void;
++}
++
++export const useStore = create<State>((set) => ({
++  searchString: '',
++  setSearchString: (searchString: string) => set({ searchString }),
++}));
+diff --git a/apps/example-next-edge/tailwind.config.js b/apps/example-next-edge/tailwind.config.js
+new file mode 100644
+index 0000000..1025c69
+--- /dev/null
++++ b/apps/example-next-edge/tailwind.config.js
+@@ -0,0 +1,16 @@
++const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
++const { join } = require('path');
++
++module.exports = {
++  content: [
++    join(
++      __dirname,
++      '{src,pages,components}/**/*!(*.stories|*.spec).{ts,tsx,html}'
++    ),
++    ...createGlobPatternsForDependencies(__dirname),
++  ],
++  theme: {
++    extend: {},
++  },
++  plugins: [require('@tailwindcss/typography'), require('daisyui')],
++};
+diff --git a/apps/example-next-edge/test.http b/apps/example-next-edge/test.http
+new file mode 100644
+index 0000000..623cb16
+--- /dev/null
++++ b/apps/example-next-edge/test.http
+@@ -0,0 +1,36 @@
++# @host = http://localhost:4200/api
++# @host = http://localhost:3333
++@host = http://localhost:3334
++@contentType = application/json
++
++### Create Post
++POST {{host}}/posts HTTP/1.1
++content-type: application/json
++  
++{
++  "title": "Post Title",
++  "content": "Post Content"
++}
++
++### Create Posts (Bad Body)
++POST {{host}}/posts HTTP/1.1
++content-type: application/json
++  
++{
++  "title": "Post Title"
++}
++
++### Delete Post
++DELETE {{host}}/posts/1 HTTP/1.1
++  
++### Get Posts
++GET {{host}}/posts HTTP/1.1
++
++### Get Post
++GET {{host}}/posts/cl7b56nof002792kjkeugskez HTTP/1.1
++
++### Search Posts
++GET {{host}}/posts?search=REST HTTP/1.1
++
++### Test
++GET {{host}}/health
+\ No newline at end of file
+diff --git a/apps/example-next-edge/tsconfig.json b/apps/example-next-edge/tsconfig.json
+new file mode 100644
+index 0000000..cadb8cd
+--- /dev/null
++++ b/apps/example-next-edge/tsconfig.json
+@@ -0,0 +1,18 @@
++{
++  "extends": "../../tsconfig.base.json",
++  "compilerOptions": {
++    "jsx": "preserve",
++    "allowJs": true,
++    "esModuleInterop": true,
++    "allowSyntheticDefaultImports": true,
++    "strict": false,
++    "forceConsistentCasingInFileNames": true,
++    "noEmit": true,
++    "resolveJsonModule": true,
++    "isolatedModules": true,
++    "incremental": true,
++    "types": ["jest", "node"]
++  },
++  "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "next-env.d.ts"],
++  "exclude": ["node_modules", "jest.config.ts"]
++}
+diff --git a/apps/example-next-edge/tsconfig.spec.json b/apps/example-next-edge/tsconfig.spec.json
+new file mode 100644
+index 0000000..23a8088
+--- /dev/null
++++ b/apps/example-next-edge/tsconfig.spec.json
+@@ -0,0 +1,21 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../dist/out-tsc",
++    "module": "commonjs",
++    "types": ["jest", "node"],
++    "jsx": "react"
++  },
++  "include": [
++    "jest.config.ts",
++    "**/*.test.ts",
++    "**/*.spec.ts",
++    "**/*.test.tsx",
++    "**/*.spec.tsx",
++    "**/*.test.js",
++    "**/*.spec.js",
++    "**/*.test.jsx",
++    "**/*.spec.jsx",
++    "**/*.d.ts"
++  ]
++}
+diff --git a/libs/ts-rest/edge/.babelrc b/libs/ts-rest/edge/.babelrc
+new file mode 100644
+index 0000000..e24a546
+--- /dev/null
++++ b/libs/ts-rest/edge/.babelrc
+@@ -0,0 +1,10 @@
++{
++  "presets": [
++    [
++      "@nrwl/web/babel",
++      {
++        "useBuiltIns": "usage"
++      }
++    ]
++  ]
++}
+diff --git a/libs/ts-rest/edge/.eslintrc.json b/libs/ts-rest/edge/.eslintrc.json
+new file mode 100644
+index 0000000..3456be9
+--- /dev/null
++++ b/libs/ts-rest/edge/.eslintrc.json
+@@ -0,0 +1,18 @@
++{
++  "extends": ["../../../.eslintrc.json"],
++  "ignorePatterns": ["!**/*"],
++  "overrides": [
++    {
++      "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
++      "rules": {}
++    },
++    {
++      "files": ["*.ts", "*.tsx"],
++      "rules": {}
++    },
++    {
++      "files": ["*.js", "*.jsx"],
++      "rules": {}
++    }
++  ]
++}
+diff --git a/libs/ts-rest/edge/CHANGELOG.md b/libs/ts-rest/edge/CHANGELOG.md
+new file mode 100644
+index 0000000..e69de29
+diff --git a/libs/ts-rest/edge/README.md b/libs/ts-rest/edge/README.md
+new file mode 100644
+index 0000000..92cc2ff
+--- /dev/null
++++ b/libs/ts-rest/edge/README.md
+@@ -0,0 +1,11 @@
++# ts-rest-edge
++
++This library was generated with [Nx](https://nx.dev).
++
++## Building
++
++Run `nx build ts-rest-edge` to build the library.
++
++## Running unit tests
++
++Run `nx test ts-rest-edge` to execute the unit tests via [Jest](https://jestjs.io).
+diff --git a/libs/ts-rest/edge/jest.config.ts b/libs/ts-rest/edge/jest.config.ts
+new file mode 100644
+index 0000000..95971b5
+--- /dev/null
++++ b/libs/ts-rest/edge/jest.config.ts
+@@ -0,0 +1,15 @@
++/* eslint-disable */
++export default {
++  displayName: 'ts-rest-edge',
++  preset: '../../../jest.preset.js',
++  globals: {
++    'ts-jest': {
++      tsconfig: '<rootDir>/tsconfig.spec.json',
++    },
++  },
++  transform: {
++    '^.+\\.[tj]s$': 'ts-jest',
++  },
++  moduleFileExtensions: ['ts', 'js', 'html'],
++  coverageDirectory: '../../../coverage/libs/ts-rest/edge',
++};
+diff --git a/libs/ts-rest/edge/package.json b/libs/ts-rest/edge/package.json
+new file mode 100644
+index 0000000..656f570
+--- /dev/null
++++ b/libs/ts-rest/edge/package.json
+@@ -0,0 +1,20 @@
++{
++  "name": "@ts-rest/edge",
++  "version": "3.22.0",
++  "peerDependencies": {
++    "zod": "^3.0.0"
++  },
++  "peerDependenciesMeta": {
++    "zod": {
++      "optional": true
++    }
++  },
++  "typedoc": {
++    "entryPoint": "./src/index.ts",
++    "tsconfig": "./tsconfig.lib.json"
++  },
++  "devDependencies": {
++    "cross-fetch": "^3.1.6",
++    "url": "^0.11.0"
++  }
++}
+diff --git a/libs/ts-rest/edge/project.json b/libs/ts-rest/edge/project.json
+new file mode 100644
+index 0000000..fe6e490
+--- /dev/null
++++ b/libs/ts-rest/edge/project.json
+@@ -0,0 +1,64 @@
++{
++  "name": "ts-rest-edge",
++  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
++  "sourceRoot": "libs/ts-rest/edge/src",
++  "projectType": "library",
++  "targets": {
++    "build": {
++      "executor": "@nrwl/rollup:rollup",
++      "outputs": ["{options.outputPath}"],
++      "options": {
++        "project": "libs/ts-rest/edge/package.json",
++        "outputPath": "dist/libs/ts-rest/edge",
++        "main": "libs/ts-rest/edge/src/index.ts",
++        "tsConfig": "libs/ts-rest/edge/tsconfig.lib.json",
++        "assets": [
++          {
++            "glob": "CHANGELOG.md",
++            "input": "libs/ts-rest/edge",
++            "output": "."
++          },
++          {
++            "glob": "README.md",
++            "input": ".",
++            "output": "."
++          }
++        ],
++        "format": ["esm", "cjs"],
++        "compiler": "tsc",
++        "rollupConfig": "tools/scripts/rollup.config.js",
++        "generateExportsField": true,
++        "skipTypeField": true
++      }
++    },
++    "publish": {
++      "executor": "@nrwl/workspace:run-commands",
++      "options": {
++        "command": "node tools/scripts/publish.mjs ts-rest-edge {args.ver} {args.tag}"
++      },
++      "dependsOn": [
++        {
++          "projects": "self",
++          "target": "build"
++        }
++      ]
++    },
++    "lint": {
++      "executor": "@nrwl/linter:eslint",
++      "outputs": ["{options.outputFile}"],
++      "options": {
++        "lintFilePatterns": ["libs/ts-rest/edge/**/*.ts"]
++      }
++    },
++    "test": {
++      "executor": "@nrwl/jest:jest",
++      "outputs": ["{workspaceRoot}/coverage/libs/ts-rest/edge"],
++      "options": {
++        "jestConfig": "libs/ts-rest/edge/jest.config.ts",
++        "passWithNoTests": true,
++        "coverageReporters": ["lcov", "text-summary"]
++      }
++    }
++  },
++  "tags": []
++}
+diff --git a/libs/ts-rest/edge/src/index.ts b/libs/ts-rest/edge/src/index.ts
+new file mode 100644
+index 0000000..56a0dc6
+--- /dev/null
++++ b/libs/ts-rest/edge/src/index.ts
+@@ -0,0 +1 @@
++export * from './lib/ts-rest-edge';
+diff --git a/libs/ts-rest/edge/src/lib/helpers/path-utils.spec.ts b/libs/ts-rest/edge/src/lib/helpers/path-utils.spec.ts
+new file mode 100644
+index 0000000..e5e2c0f
+--- /dev/null
++++ b/libs/ts-rest/edge/src/lib/helpers/path-utils.spec.ts
+@@ -0,0 +1,53 @@
++import { initContract } from '@ts-rest/core';
++import { getPathParamsFromArray } from './path-utils';
++
++const c = initContract();
++
++describe('getPathParamsFromArray', () => {
++  it('should extract params from array', () => {
++    const appRoute = c.query({
++      method: 'GET',
++      path: `/posts/:id`,
++      query: null,
++      responses: {
++        200: c.response<{ message: string }>(),
++      },
++    });
++
++    const pathParams = getPathParamsFromArray(['posts', '1'], appRoute);
++
++    expect(pathParams).toStrictEqual({ id: '1' });
++  });
++
++  it('should extract params from array with many path params', () => {
++    const appRoute = c.query({
++      method: 'GET',
++      path: `/posts/:id/comments/:commentId`,
++      query: null,
++      responses: {
++        200: c.response<{ message: string }>(),
++      },
++    });
++
++    const pathParams = getPathParamsFromArray(
++      ['posts', '1', 'comments', '2'],
++      appRoute
++    );
++
++    expect(pathParams).toStrictEqual({ id: '1', commentId: '2' });
++  });
++  it('should ignore any query params', () => {
++    const appRoute = c.query({
++      method: 'GET',
++      path: `/posts/:id`,
++      query: null,
++      responses: {
++        200: c.response<{ message: string }>(),
++      },
++    });
++
++    const pathParams = getPathParamsFromArray(['posts', '1'], appRoute);
++
++    expect(pathParams).toStrictEqual({ id: '1' });
++  });
++});
+diff --git a/libs/ts-rest/edge/src/lib/helpers/path-utils.ts b/libs/ts-rest/edge/src/lib/helpers/path-utils.ts
+new file mode 100644
+index 0000000..237c7e9
+--- /dev/null
++++ b/libs/ts-rest/edge/src/lib/helpers/path-utils.ts
+@@ -0,0 +1,30 @@
++import { AppRoute } from '@ts-rest/core';
++
++/**
++ * Get path params from array of url segments
++ * @param urlChunks ['posts', '1', 'comments', '2']
++ * @param appRoute
++ * @returns
++ */
++export const getPathParamsFromArray = (
++  urlChunks: string[],
++  appRoute: AppRoute
++): Record<string, string> => {
++  const pathAsArr = appRoute.path.split('/').slice(1);
++
++  const pathParams: Record<string, string> = {};
++
++  urlChunks.forEach((baseUrlPart, index) => {
++    pathParams[pathAsArr[index]] = baseUrlPart;
++  });
++
++  // remove pathParams where key doesn't start with :
++  return Object.entries(pathParams).reduce((acc, [key, value]) => {
++    if (key.startsWith(':')) {
++      const keyWithoutColon = key.slice(1);
++      acc[keyWithoutColon] = value;
++    }
++
++    return acc;
++  }, {} as Record<string, string>);
++};
+diff --git a/libs/ts-rest/edge/src/lib/ts-rest-edge.ts b/libs/ts-rest/edge/src/lib/ts-rest-edge.ts
+new file mode 100644
+index 0000000..a9129a1
+--- /dev/null
++++ b/libs/ts-rest/edge/src/lib/ts-rest-edge.ts
+@@ -0,0 +1,331 @@
++import {
++  // ApiRouteServerResponse,
++  AppRoute,
++  AppRouteMutation,
++  AppRouteQuery,
++  AppRouter,
++  LowercaseKeys,
++  // PathParamsWithCustomValidators,
++  ZodInferOrType,
++  checkZodSchema,
++  isAppRoute,
++  parseJsonQueryObject,
++  validateResponse,
++} from '@ts-rest/core';
++import { getPathParamsFromArray } from './helpers/path-utils';
++import { z } from 'zod';
++
++type RouteToQueryFunctionImplementation<T extends AppRouteQuery> = (args: {
++  params: any;
++  // params: PathParamsWithCustomValidators<T>;
++  query: ZodInferOrType<T['query']>;
++  headers: LowercaseKeys<ZodInferOrType<T['headers']>> & Request['headers'];
++  req: Request;
++// }) => Promise<ApiRouteServerResponse<T['responses']>>;
++}) => Promise<any>;
++
++type RouteToMutationFunctionImplementation<T extends AppRouteMutation> =
++  (args: {
++    // params: PathParamsWithCustomValidators<T>;
++    params: any;
++    body: ZodInferOrType<T['body']>;
++    query: ZodInferOrType<T['query']>;
++    headers: LowercaseKeys<ZodInferOrType<T['headers']>> & Request['headers'];
++    req: Request;
++  // }) => Promise<ApiRouteServerResponse<T['responses']>>;
++}) => Promise<any>;
++
++type RouteToFunctionImplementation<T extends AppRoute> = T extends AppRouteQuery
++  ? RouteToQueryFunctionImplementation<T>
++  : T extends AppRouteMutation
++  ? RouteToMutationFunctionImplementation<T>
++  : never;
++
++type RecursiveRouterObj<T extends AppRouter> = {
++  [TKey in keyof T]: T[TKey] extends AppRouter
++    ? RecursiveRouterObj<T[TKey]>
++    : T[TKey] extends AppRoute
++    ? RouteToFunctionImplementation<T[TKey]>
++    : never;
++};
++
++type AppRouteQueryWithImplementation<T extends AppRouteQuery> = T & {
++  implementation: RouteToQueryFunctionImplementation<T>;
++};
++
++type AppRouteMutationWithImplementation<T extends AppRouteMutation> = T & {
++  implementation: RouteToMutationFunctionImplementation<T>;
++};
++
++type AppRouteWithImplementation<T extends AppRoute> = T extends AppRouteMutation
++  ? AppRouteMutationWithImplementation<T>
++  : T extends AppRouteQuery
++  ? AppRouteQueryWithImplementation<T>
++  : never;
++
++type AppRouterWithImplementation = {
++  // eslint-disable-next-line @typescript-eslint/no-explicit-any
++  [key: string]: AppRouterWithImplementation | AppRouteWithImplementation<any>;
++};
++
++/**
++ * Combine all AppRoutes with their implementations into a single object
++ * which is easier to work with
++ * @param router
++ * @param implementation
++ * @returns
++ */
++const mergeRouterAndImplementation = <T extends AppRouter>(
++  router: T,
++  implementation: RecursiveRouterObj<T>
++): AppRouterWithImplementation => {
++  const keys = Object.keys(router);
++
++  return keys.reduce((acc, key) => {
++    const existing = router[key];
++    const existingImpl = implementation[key];
++
++    if (isAppRoute(existing)) {
++      acc[key] = {
++        ...existing,
++        implementation: existingImpl as RouteToFunctionImplementation<
++          typeof existing
++        >,
++      };
++    } else {
++      acc[key] = mergeRouterAndImplementation(
++        existing,
++        existingImpl as RecursiveRouterObj<typeof existing>
++      );
++    }
++    return acc;
++  }, {} as AppRouterWithImplementation);
++};
++
++/** create Query object from URLSearchParams
++ * @param URLSearchParams
++ * @returns Query object
++ * */
++
++export const createQueryObject = (URLSearchParams: URLSearchParams) => {
++  const queryObject: Record<string, string> = {};
++  URLSearchParams.forEach((value, key) => {
++    queryObject[key] = value;
++  });
++  return queryObject;
++};
++
++// eslint-disable-next-line @typescript-eslint/no-explicit-any
++export const isAppRouteWithImplementation = (
++  // eslint-disable-next-line @typescript-eslint/no-explicit-any
++  obj: any
++  // eslint-disable-next-line @typescript-eslint/no-explicit-any
++): obj is AppRouteWithImplementation<any> => {
++  return obj?.implementation !== undefined && obj?.method;
++};
++
++export function findRoute(
++  appRouter: AppRouter,
++  pathname: string,
++  method: string
++): AppRouteWithImplementation<AppRoute> | null {
++  const matchPath = (routePath: string, targetPath: string) => {
++    const pathSegments = routePath.split('/').filter((s) => s.length > 0);
++    const targetSegments = targetPath.split('/').filter((s) => s.length > 0);
++    if (pathSegments.length !== targetSegments.length) return false;
++
++    return pathSegments.every(
++      (segment, i) => segment.startsWith(':') || segment === targetSegments[i]
++    );
++  };
++
++  const findMatchingRoute = (
++    routes: AppRouter
++  ): AppRouteWithImplementation<AppRoute> | null => {
++    for (const route of Object.values(routes)) {
++      const isApiRouter = isAppRoute(route);
++      if (!isApiRouter) return findMatchingRoute(route as AppRouter);
++
++      if (route.method !== method) continue;
++
++      if (matchPath(route.path, pathname))
++        return route as AppRouteWithImplementation<AppRoute>;
++    }
++    return null;
++  };
++
++  return findMatchingRoute(appRouter);
++}
++
++const parseJsonBody = async (requestOrResponse: Request | Response) => {
++  try {
++    const json = await requestOrResponse.json();
++    return {
++      isJson: true,
++      body: json,
++    };
++  } catch (e) {
++    return {
++      isJson: false,
++    };
++  }
++};
++/**
++ * Create the implementation for a given AppRouter.
++ *
++ * @param appRouter - AppRouter
++ * @param implementation - Implementation of the AppRouter, e.g. your API controllers
++ * @returns
++ */
++// TODO maybe just accept a type argument
++export const createEdgeRoute = <T extends AppRouter>(
++  appRouter: T,
++  implementation: RecursiveRouterObj<T>
++) => implementation;
++
++/**
++ * Create a request handler for the serverless edge computing.
++ *
++ * @param params - An object that includes the route contract, route handlers, the incoming request, and the base endpoint.
++ * @param params.appContract - The route contract.
++ * @param params.appRouter - The route handlers that correspond to the route contract.
++ * @param params.request - The incoming request.
++ * @param params.baseEndpoint - The base endpoint that should be stripped from the request URL before the route matching.
++ * @param options - An optional object for additional configurations.
++ * @param options.jsonQuery - A flag to parse JSON-encoded query parameters.
++ * @param options.responseValidation - A flag to validate the response from the route handlers against the route contract.
++ * @param options.errorHandler - An optional error handler to handle errors thrown during the request processing.
++ * @returns The response to be sent back to the client.
++ */
++export const createEdgeRequestHandler = async <T extends AppRouter>(
++  {
++    appContract,
++    appRouter,
++    request: req,
++    baseEndpoint: endpoint,
++  }: {
++    appContract: T;
++    appRouter: RecursiveRouterObj<T>;
++    request: Request;
++    baseEndpoint: string;
++  },
++  options?: {
++    jsonQuery?: boolean;
++    responseValidation?: boolean;
++    errorHandler?: (err: unknown, req: Request) => void;
++  }
++) => {
++  const { jsonQuery = false, responseValidation = false } = options || {};
++
++  const combinedRouter = mergeRouterAndImplementation(appContract, appRouter);
++
++  const url = new URL(req.url, 'https://example.com');
++
++  const pathname = url.pathname.slice(endpoint.length);
++
++ /**
++ * To handle cases of OPTONS, CORS, etc. we can do something similar to the express adapter https://github.com/ts-rest/ts-rest/blob/66d5cb9d585c7f4dc032b358f0e966ff655f45a2/libs/ts-rest/express/src/lib/ts-rest-express.ts#L134-L136
++ *   const handler = isAppRouteImplementation(implementationOrOptions)
++    ? implementationOrOptions
++    : implementationOrOptions.handler;
++ */
++  const route = findRoute(combinedRouter, pathname, req.method);
++
++  if (!route) {
++    return new Response('Not Found', { status: 404 });
++  }
++
++  const pathParams = getPathParamsFromArray(pathname.split('/'), route);
++  let query = createQueryObject(url.searchParams);
++  query = jsonQuery
++    ? parseJsonQueryObject(query as Record<string, string>)
++    : query;
++  const queryResult = checkZodSchema(query, route.query);
++
++  const parsedJsonBody = await parseJsonBody(req);
++  const bodyResult = parsedJsonBody.isJson
++    ? checkZodSchema(parsedJsonBody.body, 'body' in route ? route.body : null)
++    : {
++        success: true,
++        data: req.body,
++        error: null,
++      };
++
++  const plainHeaders: Record<string, string> = {};
++  req.headers.forEach((value, key) => {
++    plainHeaders[key] = value;
++  });
++  const headersResult = checkZodSchema(plainHeaders, route.headers, {
++    passThroughExtraKeys: true,
++  });
++  const pathParamsResult = checkZodSchema(
++    pathParams,
++    route.pathParams || z.object({}),
++    {
++      passThroughExtraKeys: true,
++    }
++  );
++
++  if (!pathParamsResult.success) {
++    return new Response(JSON.stringify(pathParamsResult.error), {
++      status: 400,
++    });
++  }
++
++  if (!queryResult.success) {
++    return new Response(JSON.stringify(queryResult.error), {
++      status: 400,
++    });
++  }
++
++  if (!bodyResult.success) {
++    return new Response(JSON.stringify(bodyResult.error), {
++      status: 400,
++    });
++  }
++
++  if (!headersResult.success) {
++    return new Response(JSON.stringify(headersResult.error), {
++      status: 400,
++    });
++  }
++
++  try {
++    const res: Response = await route.implementation({
++      body: bodyResult.data,
++      query: queryResult.data,
++      params: pathParamsResult.data as any,
++      headers: headersResult.data as any,
++      req,
++    });
++
++    const parsedResponse = await parseJsonBody(res);
++    if (responseValidation && parsedResponse.isJson) {
++      const status = res.status;
++      const response = validateResponse({
++        responseType: route.responses[status],
++        response: {
++          status: status,
++          body: parsedResponse.body,
++        },
++      });
++      return new Response(JSON.stringify(response.body), {
++        status: response.status,
++        headers: res.headers,
++      });
++    }
++
++    return new Response(res.body, {
++      status: res.status,
++      headers: res.headers,
++    });
++    
++  } catch (e) {
++    if (options?.errorHandler) {
++      options.errorHandler(e, req);
++      return new Response('Internal Server Error', { status: 500 });
++    }
++
++    throw e;
++  }
++};
+diff --git a/libs/ts-rest/edge/src/lib/ts-rest-next.spec.ts b/libs/ts-rest/edge/src/lib/ts-rest-next.spec.ts
+new file mode 100644
+index 0000000..7a9d334
+--- /dev/null
++++ b/libs/ts-rest/edge/src/lib/ts-rest-next.spec.ts
+@@ -0,0 +1,58 @@
++import { initContract } from '@ts-rest/core';
++import { createEdgeRoute, createEdgeRequestHandler } from './ts-rest-edge';
++import { Request, Response } from 'cross-fetch';
++import { URLSearchParams } from 'url';
++
++global.Request = Request;
++global.Response = Response;
++
++const c = initContract();
++
++const contract = c.router({
++  get: {
++    method: 'GET',
++    path: '/test',
++    query: c.body<{ test: string }>(),
++    responses: {
++      200: c.response<{ message: string }>(),
++    },
++  },
++});
++
++const nextEndpoint = createEdgeRoute(contract, {
++  get: async ({ query: { test } }) => {
++    return new Response(JSON.stringify({ message: test }));
++  },
++});
++
++describe('createNextRouter', () => {
++  beforeEach(() => {
++    jest.clearAllMocks();
++  });
++  it('should send back a 200', async () => {
++    const resultingRouter = (req: Request) =>
++      createEdgeRequestHandler({
++        appContract: contract,
++        appRouter: nextEndpoint,
++        baseEndpoint: '/',
++        request: req,
++      });
++
++    const searchParams = new URLSearchParams();
++    searchParams.append('test', 'test-query-string');
++    searchParams.append('foo', '123');
++
++    const url = `http://localhost:3000/test?${searchParams.toString()}`;
++    const req = new Request(url, { method: 'GET' });
++
++    const response = await resultingRouter(req);
++
++    expect(response).toBeDefined();
++
++    expect(response.status).toEqual(200);
++    const json = await response.json();
++    expect(json).toEqual({
++      message: 'test-query-string',
++    });
++  });
++});
+\ No newline at end of file
+diff --git a/libs/ts-rest/edge/tsconfig.json b/libs/ts-rest/edge/tsconfig.json
+new file mode 100644
+index 0000000..8122543
+--- /dev/null
++++ b/libs/ts-rest/edge/tsconfig.json
+@@ -0,0 +1,22 @@
++{
++  "extends": "../../../tsconfig.base.json",
++  "compilerOptions": {
++    "module": "commonjs",
++    "forceConsistentCasingInFileNames": true,
++    "strict": true,
++    "noImplicitOverride": true,
++    "noPropertyAccessFromIndexSignature": true,
++    "noImplicitReturns": true,
++    "noFallthroughCasesInSwitch": true
++  },
++  "files": [],
++  "include": [],
++  "references": [
++    {
++      "path": "./tsconfig.lib.json"
++    },
++    {
++      "path": "./tsconfig.spec.json"
++    }
++  ]
++}
+diff --git a/libs/ts-rest/edge/tsconfig.lib.json b/libs/ts-rest/edge/tsconfig.lib.json
+new file mode 100644
+index 0000000..4403f2a
+--- /dev/null
++++ b/libs/ts-rest/edge/tsconfig.lib.json
+@@ -0,0 +1,10 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "declaration": true,
++    "types": []
++  },
++  "include": ["**/*.ts"],
++  "exclude": ["jest.config.ts", "**/*.spec.ts", "**/*.test.ts"]
++}
+diff --git a/libs/ts-rest/edge/tsconfig.spec.json b/libs/ts-rest/edge/tsconfig.spec.json
+new file mode 100644
+index 0000000..99ef898
+--- /dev/null
++++ b/libs/ts-rest/edge/tsconfig.spec.json
+@@ -0,0 +1,9 @@
++{
++  "extends": "./tsconfig.json",
++  "compilerOptions": {
++    "outDir": "../../../dist/out-tsc",
++    "module": "commonjs",
++    "types": ["jest", "node"]
++  },
++  "include": ["jest.config.ts", "**/*.test.ts", "**/*.spec.ts", "**/*.d.ts"]
++}
+diff --git a/package.json b/package.json
+index 27e4ba5..42c447e 100644
+--- a/package.json
++++ b/package.json
+@@ -12,7 +12,8 @@
+     "docs:start": "nx serve docs",
+     "example-microservice:serve": "pnpm nx run-many --target=serve --projects=example-microservice-posts-service,example-microservice-users-service,example-microservice-web-app,example-microservice-web-app-solid --parallel=10",
+     "example-microservice:graph": "pnpm nx dep-graph --focus=example-microservice-posts-service,example-microservice-web-app,example-microservice-web-app-solid",
+-    "ts-rest:build-watch": "pnpm nx run-many --target=build --projects=ts-rest-core,ts-rest-express,ts-rest-express,ts-rest-nest,ts-rest-next,ts-rest-open-api,ts-rest-react-query --parallel --watch",
++    "example-next-edge:serve": "pnpm nx run example-next-edge:serve",
++    "ts-rest:build-watch": "pnpm nx run-many --target=build --projects=ts-rest-core,ts-rest-express,ts-rest-express,ts-rest-nest,ts-rest-next,ts-rest-edge,ts-rest-open-api,ts-rest-react-query --parallel --watch",
+     "ci:nx-affected": "yarn ts-node ./tools/workflows/nx-affected.ts",
+     "postinstall": "pnpm prisma generate",
+     "build-test-all": "pnpm nx run-many --target=lint && pnpm nx run-many --target=test && pnpm nx run-many --target=build"
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index f151343..cd1924c 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -571,6 +571,8 @@ importers:
+ 
+   apps/example-next: {}
+ 
++  apps/example-next-edge: {}
++
+   libs/example-contracts: {}
+ 
+   libs/example-microservice/util-posts-api: {}
+@@ -583,6 +585,19 @@ importers:
+         specifier: ^3.0.0
+         version: 3.20.6
+ 
++  libs/ts-rest/edge:
++    dependencies:
++      zod:
++        specifier: ^3.0.0
++        version: 3.20.6
++    devDependencies:
++      cross-fetch:
++        specifier: ^3.1.6
++        version: 3.1.6
++      url:
++        specifier: ^0.11.0
++        version: 0.11.0
++
+   libs/ts-rest/express:
+     dependencies:
+       express:
+@@ -4881,7 +4896,7 @@ packages:
+       fs-extra: 9.0.0
+       is-docker: 2.2.1
+       is-wsl: 2.2.0
+-      node-fetch: 2.6.7
++      node-fetch: 2.6.11
+       open: 8.4.0
+       resolve-from: 5.0.0
+       semver: 7.3.2
+@@ -4905,7 +4920,7 @@ packages:
+       fs-extra: 9.0.0
+       is-docker: 2.2.1
+       is-wsl: 2.2.0
+-      node-fetch: 2.6.7
++      node-fetch: 2.6.11
+       open: 8.4.0
+       resolve-from: 5.0.0
+       semver: 7.3.2
+@@ -4967,7 +4982,7 @@ packages:
+       getenv: 1.0.0
+       jimp-compact: 0.16.1
+       mime: 2.6.0
+-      node-fetch: 2.6.7
++      node-fetch: 2.6.11
+       parse-png: 2.1.0
+       resolve-from: 5.0.0
+       semver: 7.3.2
+@@ -4985,7 +5000,7 @@ packages:
+       getenv: 1.0.0
+       jimp-compact: 0.16.1
+       mime: 2.6.0
+-      node-fetch: 2.6.7
++      node-fetch: 2.6.11
+       parse-png: 2.1.0
+       resolve-from: 5.0.0
+       semver: 7.3.2
+@@ -5002,7 +5017,7 @@ packages:
+       getenv: 1.0.0
+       jimp-compact: 0.16.1
+       mime: 2.6.0
+-      node-fetch: 2.6.7
++      node-fetch: 2.6.11
+       parse-png: 2.1.0
+       resolve-from: 5.0.0
+       semver: 7.3.2
+@@ -5256,7 +5271,7 @@ packages:
+       '@segment/loosely-validate-event': 2.0.0
+       fetch-retry: 4.1.1
+       md5: 2.3.0
+-      node-fetch: 2.6.7
++      node-fetch: 2.6.11
+       remove-trailing-slash: 0.1.1
+       uuid: 8.3.2
+     transitivePeerDependencies:
+@@ -6994,7 +7009,7 @@ packages:
+     dependencies:
+       chalk: 4.1.2
+       consola: 2.15.3
+-      node-fetch: 2.6.7
++      node-fetch: 2.6.11
+     transitivePeerDependencies:
+       - encoding
+ 
+@@ -7953,7 +7968,7 @@ packages:
+       chalk: 4.1.2
+       find-up: 5.0.0
+       mime: 2.6.0
+-      node-fetch: 2.6.7
++      node-fetch: 2.6.11
+       open: 6.4.0
+       ora: 5.4.1
+       semver: 6.3.0
+@@ -10331,7 +10346,7 @@ packages:
+     resolution: {integrity: sha512-vm/7c7ld+zFMxibzqZ7SSa5tBENc4B0uye9LTfjJwGoQFY5xsUPH5FpO5j0bMUDZ8YYNbrF9SNtzc5Cngcr90g==}
+     engines: {node: '>=12.0'}
+     dependencies:
+-      node-fetch: 2.6.7
++      node-fetch: 2.6.11
+     transitivePeerDependencies:
+       - encoding
+     dev: false
+@@ -12680,10 +12695,10 @@ packages:
+   /create-require@1.1.1:
+     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
+ 
+-  /cross-fetch@3.1.5:
+-    resolution: {integrity: sha512-lvb1SBsI0Z7GDwmuid+mU3kWVBwTVUbe7S0H52yaaAdQOXq2YktTCZdlAcNKFzE6QtRz0snpw9bNiPeOIkkQvw==}
++  /cross-fetch@3.1.6:
++    resolution: {integrity: sha512-riRvo06crlE8HiqOwIpQhxwdOk4fOeR7FVM/wXoxchFEqMNUjvbs3bfo4OTgMEMHzppd4DxFBDbyySj8Cv781g==}
+     dependencies:
+-      node-fetch: 2.6.7
++      node-fetch: 2.6.11
+     transitivePeerDependencies:
+       - encoding
+ 
+@@ -15705,7 +15720,7 @@ packages:
+   /fbjs@3.0.4:
+     resolution: {integrity: sha512-ucV0tDODnGV3JCnnkmoszb5lf4bNpzjv80K41wd4k798Etq+UYD0y0TIfalLjZoKgjive6/adkRnszwapiDgBQ==}
+     dependencies:
+-      cross-fetch: 3.1.5
++      cross-fetch: 3.1.6
+       fbjs-css-vars: 1.0.2
+       loose-envify: 1.4.0
+       object-assign: 4.1.1
+@@ -20496,7 +20511,7 @@ packages:
+       metro-transform-plugins: 0.73.9
+       metro-transform-worker: 0.73.9
+       mime-types: 2.1.35
+-      node-fetch: 2.6.7
++      node-fetch: 2.6.11
+       nullthrows: 1.1.1
+       rimraf: 3.0.2
+       serialize-error: 2.1.0
+@@ -21116,6 +21131,17 @@ packages:
+       lodash: 4.17.21
+     dev: false
+ 
++  /node-fetch@2.6.11:
++    resolution: {integrity: sha512-4I6pdBY1EthSqDmJkiNk3JIT8cswwR9nfeW/cPdUagJYEQG7R95WRH74wpz7ma8Gh/9dI9FP+OU+0E4FvtA55w==}
++    engines: {node: 4.x || >=6.0.0}
++    peerDependencies:
++      encoding: ^0.1.0
++    peerDependenciesMeta:
++      encoding:
++        optional: true
++    dependencies:
++      whatwg-url: 5.0.0
++
+   /node-fetch@2.6.7:
+     resolution: {integrity: sha512-ZjMPFEfVx5j+y2yF35Kzx5sF7kDzxuDj6ziH4FFbOp87zKDZNx8yExJIb05OGF4Nlt9IHFIMBkRl41VdvcNdbQ==}
+     engines: {node: 4.x || >=6.0.0}
+diff --git a/tsconfig.base.json b/tsconfig.base.json
+index 152322b..201da8d 100644
+--- a/tsconfig.base.json
++++ b/tsconfig.base.json
+@@ -26,6 +26,7 @@
+       "@ts-rest/example-microservice/util-users-api": [
+         "libs/example-microservice/util-users-api/src/index.ts"
+       ],
++      "@ts-rest/edge": ["libs/ts-rest/edge/src/index.ts"],
+       "@ts-rest/example-nest": ["libs/example-nest/src/index.ts"],
+       "@ts-rest/express": ["libs/ts-rest/express/src/index.ts"],
+       "@ts-rest/fastify": ["libs/ts-rest/fastify/src/index.ts"],
+-- 
+2.39.2 (Apple Git-143)
+

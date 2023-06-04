@@ -1,0 +1,20 @@
+{
+  "name": "@ts-rest/edge",
+  "version": "3.22.0",
+  "peerDependencies": {
+    "zod": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
+  },
+  "typedoc": {
+    "entryPoint": "./src/index.ts",
+    "tsconfig": "./tsconfig.lib.json"
+  },
+  "devDependencies": {
+    "cross-fetch": "^3.1.6",
+    "url": "^0.11.0"
+  }
+}

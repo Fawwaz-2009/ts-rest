@@ -26,6 +26,7 @@
       "@ts-rest/example-microservice/util-users-api": [
         "libs/example-microservice/util-users-api/src/index.ts"
       ],
+      "@ts-rest/edge": ["libs/ts-rest/edge/src/index.ts"],
       "@ts-rest/example-nest": ["libs/example-nest/src/index.ts"],
       "@ts-rest/express": ["libs/ts-rest/express/src/index.ts"],
       "@ts-rest/fastify": ["libs/ts-rest/fastify/src/index.ts"],

@@ -1,0 +1,64 @@
+{
+  "name": "example-next-edge",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/example-next-edge",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/next:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "root": "apps/example-next-edge",
+        "outputPath": "dist/apps/example-next-edge"
+      },
+      "configurations": {
+        "development": {
+          "outputPath": "tmp/apps/example-next-edge"
+        },
+        "production": {}
+      }
+    },
+    "serve": {
+      "executor": "@nx/next:server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "example-next-edge:build",
+        "dev": true
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "example-next-edge:build:development",
+          "dev": true
+        },
+        "production": {
+          "buildTarget": "example-next-edge:build:production",
+          "dev": false
+        }
+      }
+    },
+    "export": {
+      "executor": "@nx/next:export",
+      "options": {
+        "buildTarget": "example-next-edge:build:production"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/apps/example-next-edge"],
+      "options": {
+        "jestConfig": "apps/example-next-edge/jest.config.ts",
+        "passWithNoTests": true,
+        "coverageReporters": ["lcov", "text-summary"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["apps/example-next-edge/**/*.{ts,tsx,js,jsx}"]
+      }
+    }
+  },
+  "tags": []
+}
